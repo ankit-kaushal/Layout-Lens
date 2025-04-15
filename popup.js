@@ -1,27 +1,28 @@
 let isHighlighted = false;
 const button = document.getElementById('highlight');
 
+chrome.storage.local.get(['isHighlighted'], (result) => {
+  isHighlighted = result.isHighlighted || false;
+  button.textContent = isHighlighted ? 'Remove Highlight' : 'Highlight Layouts';
+});
+
 button.addEventListener('click', () => {
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     isHighlighted = !isHighlighted;
+    chrome.storage.local.set({ isHighlighted });
     button.textContent = isHighlighted ? 'Remove Highlight' : 'Highlight Layouts';
     
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
       function: (highlight) => {
-        // Remove existing overlays and labels
-        const existingElements = document.querySelectorAll('.layout-debugger-overlay, .layout-tooltip, .layout-label');
+        const existingElements = document.querySelectorAll('.layout-debugger-lens, .layout-tooltip, .layout-label');
         existingElements.forEach(el => el.remove());
 
-        if (!highlight) return; // Exit if we're removing highlights
-
-        // Define elements here
+        if (!highlight) return;
         const elements = Array.from(document.querySelectorAll('*')).filter(el => {
           const style = window.getComputedStyle(el);
           return style.display === 'flex' || style.display === 'grid';
         });
-
-        // Debounce function for smooth tooltip handling
         const debounce = (fn, delay) => {
           let timeoutId;
           return (...args) => {
@@ -35,7 +36,7 @@ button.addEventListener('click', () => {
           const rect = el.getBoundingClientRect();
           
           const overlay = document.createElement('div');
-          overlay.className = 'layout-debugger-overlay';
+          overlay.className = 'layout-debugger-lens';
 
           Object.assign(overlay.style, {
             position: 'absolute',
@@ -46,47 +47,71 @@ button.addEventListener('click', () => {
             backgroundColor: 'rgba(0, 200, 255, 0.1)',
             border: '2px dashed rgba(0, 200, 255, 0.7)',
             zIndex: 99999,
-            cursor: 'pointer'  // Changed from pointer-events: none
+            cursor: 'pointer'
           });
 
-          // Add hover event listeners
           overlay.addEventListener('mouseover', (e) => {
             let properties = [];
             if (style.display === 'flex') {
+              properties.push('/* Flex Container Styles */');
+              properties.push(`display: ${style.display};`);
+              
               const flexProps = {
-                'Direction': style.flexDirection,
-                'Justify Content': style.justifyContent,
-                'Align Items': style.alignItems,
-                'Flex Wrap': style.flexWrap,
-                'Gap': style.gap !== 'normal' ? style.gap : null,
-                'Row Gap': style.rowGap !== 'normal' ? style.rowGap : null,
-                'Column Gap': style.columnGap !== 'normal' ? style.columnGap : null
+                'flex-direction': style.flexDirection,
+                'justify-content': style.justifyContent,
+                'align-items': style.alignItems,
+                'align-content': style.alignContent,
+                'flex-wrap': style.flexWrap,
+                'gap': style.gap,
+                'row-gap': style.rowGap,
+                'column-gap': style.columnGap,
+                'padding': style.padding,
+                'margin': style.margin,
+                'width': style.width,
+                'height': style.height,
+                'min-width': style.minWidth,
+                'min-height': style.minHeight,
+                'max-width': style.maxWidth,
+                'max-height': style.maxHeight
               };
 
-              properties.push('Flex Properties:');
-              for (const [key, value] of Object.entries(flexProps)) {
-                if (value && value !== 'normal' && value !== 'none') {
-                  properties.push(`• ${key}: ${value}`);
+              for (const [prop, value] of Object.entries(flexProps)) {
+                if (value && value !== 'normal' && value !== 'none' && value !== '0px' && value !== 'auto') {
+                  properties.push(`${prop}: ${value};`);
                 }
               }
             } else if (style.display === 'grid') {
+              properties.push('/* Grid Container Styles */');
+              properties.push(`display: ${style.display};`);
+              
               const gridProps = {
-                'Template Columns': style.gridTemplateColumns,
-                'Template Rows': style.gridTemplateRows,
-                'Gap': style.gap !== 'normal' ? style.gap : null,
-                'Justify Items': style.justifyItems,
-                'Align Items': style.alignItems
+                'grid-template-columns': style.gridTemplateColumns,
+                'grid-template-rows': style.gridTemplateRows,
+                'grid-template-areas': style.gridTemplateAreas,
+                'grid-auto-columns': style.gridAutoColumns,
+                'grid-auto-rows': style.gridAutoRows,
+                'grid-auto-flow': style.gridAutoFlow,
+                'gap': style.gap,
+                'row-gap': style.rowGap,
+                'column-gap': style.columnGap,
+                'justify-items': style.justifyItems,
+                'align-items': style.alignItems,
+                'justify-content': style.justifyContent,
+                'align-content': style.alignContent,
+                'padding': style.padding,
+                'margin': style.margin,
+                'width': style.width,
+                'height': style.height
               };
 
-              properties.push('Grid Properties:');
-              for (const [key, value] of Object.entries(gridProps)) {
-                if (value && value !== 'normal' && value !== 'none') {
-                  properties.push(`• ${key}: ${value}`);
+              for (const [prop, value] of Object.entries(gridProps)) {
+                if (value && value !== 'normal' && value !== 'none' && value !== '0px' && value !== 'auto') {
+                  properties.push(`${prop}: ${value};`);
                 }
               }
             }
 
-            if (properties.length > 1) { // Only show if there are actual properties
+            if (properties.length > 1) {
               const tooltip = document.createElement('div');
               tooltip.className = 'layout-tooltip';
               tooltip.style.cssText = `
@@ -95,13 +120,15 @@ button.addEventListener('click', () => {
                 top: ${e.clientY + 15}px;
                 background: rgba(0, 0, 0, 0.9);
                 color: white;
-                padding: 10px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-family: monospace;
+                padding: 12px 15px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-family: 'Monaco', monospace;
                 white-space: pre;
                 z-index: 100001;
                 pointer-events: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                line-height: 1.5;
               `;
               tooltip.textContent = properties.join('\n');
               document.body.appendChild(tooltip);
@@ -113,35 +140,16 @@ button.addEventListener('click', () => {
             if (tooltip) tooltip.remove();
           });
 
-          // Add debounced mousemove handler for smooth tooltip positioning
           const updateTooltipPosition = debounce((e) => {
             const tooltip = document.querySelector('.layout-tooltip');
             if (tooltip) {
               tooltip.style.left = `${e.clientX + 15}px`;
               tooltip.style.top = `${e.clientY + 15}px`;
             }
-          }, 16); // ~60fps
+          }, 16);
 
           overlay.addEventListener('mousemove', updateTooltipPosition);
-
-          const label = document.createElement('div');
-          label.textContent = `display: ${style.display}`;
-          label.className = 'layout-label'; // Add class for easy removal
-          Object.assign(label.style, {
-            position: 'absolute',
-            top: `${rect.top + window.scrollY - 18}px`,
-            left: `${rect.left + window.scrollX}px`,
-            backgroundColor: 'black',
-            color: 'white',
-            fontSize: '12px',
-            padding: '2px 4px',
-            borderRadius: '4px',
-            zIndex: 100000,
-            pointerEvents: 'none'
-          });
-
           document.body.appendChild(overlay);
-          document.body.appendChild(label);
         });
       },
       args: [isHighlighted]

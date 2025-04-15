@@ -1,7 +1,5 @@
-// First, remove any existing overlays and cleanup
 (() => {
-  // Clean up existing overlays
-  document.querySelectorAll('.layout-debugger-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.layout-debugger-lens').forEach(el => el.remove());
 
   const elements = Array.from(document.querySelectorAll('*')).filter(el => {
     const style = window.getComputedStyle(el);
@@ -12,7 +10,7 @@
     const style = window.getComputedStyle(el);
     const rect = el.getBoundingClientRect();
     const overlay = document.createElement('div');
-    overlay.className = 'layout-debugger-overlay';
+    overlay.className = 'layout-debugger-lens';
 
     Object.assign(overlay.style, {
       position: 'absolute',

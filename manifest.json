@@ -3,7 +3,7 @@
     "name": "Layout Lens",
     "version": "1.0",
     "description": "Highlight all Flex and Grid containers on the page.",
-    "permissions": ["scripting", "activeTab"],
+    "permissions": ["scripting", "activeTab", "storage"],
     "action": {
       "default_popup": "popup.html",
       "default_icon": {
