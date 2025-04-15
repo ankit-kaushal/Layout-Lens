@@ -1,0 +1,15 @@
+{
+    "manifest_version": 3,
+    "name": "Layout Lens",
+    "version": "1.0",
+    "description": "Highlight all Flex and Grid containers on the page.",
+    "permissions": ["scripting", "activeTab"],
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "48": "icons/icon48.png"
+      }
+    },
+    "host_permissions": ["<all_urls>"]
+}
+  
